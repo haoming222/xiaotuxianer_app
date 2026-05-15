@@ -1,0 +1,146 @@
+================================================================================
+购物车接口与前端实现 — 变更日志
+项目：D:\uniappproject\app
+日期：2026-04-12
+================================================================================
+
+[2026-04-12 14:00:00] 需求摘要
+--------------------------------------------------------------------------------
+1）商品详情页底部「加入购物车」点击后发起 HTTP 请求，风格与全项目统一（utils/request.js）。
+2）购物车 tab 页请求列表接口；在后端未就绪时展示一条本地「演示数据」以便看 UI。
+3）本文件详细描述两个接口的契约，供后端实现与联调。
+
+================================================================================
+一、全局约定（与现有接口一致）
+================================================================================
+基础地址 BASE_URL：与 utils/request.js 中一致（当前为 http://localhost:18080）。
+完整 URL = BASE_URL + 下文「路径」。
+
+鉴权 Header：
+  Authorization: <与 uni.getStorageSync('token') 一致，无 token 时为空字符串>
+
+请求封装：
+  import request from '@/utils/request'
+  成功：HTTP statusCode === 200 时 resolve 响应体（即 axios 语义下的 res.data，uni 里为接口返回的 JSON 对象）。
+  失败：非 200 等会 toast 并 reject（444/445 会跳转登录，与现有逻辑一致）。
+
+与商品详情接口对齐的响应习惯（建议）：
+  顶层字段包含 data，业务数据放在 data 内；例如 goods/detail 使用 detailData.value = data.data。
+
+================================================================================
+二、接口 1：加入购物车
+================================================================================
+路径：           /cart/add
+HTTP 方法：      POST
+Content-Type：   与 uni.request 默认行为一致（对象 data 会序列化为请求体；若后端强制 application/json，请与现有 /member/address POST 保持一致即可）
+
+【请求体 JSON 字段】
+
+字段名           类型              必填    说明
+--------------------------------------------------------------------------------
+goodsId          string | number   是      商品 ID，与详情页路由参数 id、/goods/detail 所用 id 一致。
+quantity         number            是      购买件数，当前前端固定传 1（详情底栏未接规格弹窗选数量时）。
+specSummary      string            否      规格摘要文案，便于购物车行展示与对账；示例来自 SKU：specs[0].valueName。
+skuId            string | number   否      SKU 主键。若商品表已拆 SKU，强烈建议必填；若后端暂未返回 id，
+                                   前端在 SKU 对象上存在 id / skuId 时会自动带上。
+
+【前端当前组包逻辑（供对照）】
+文件：pages/detail/components/DetailActionBar/DetailActionBar.vue
+  - 取 detailData.skus[0] 作为默认 SKU（用户尚未在规格弹窗里确认时，与现有 SelectSpces 默认第一项一致）。
+  - payload 示例：
+    { "goodsId": "123", "quantity": 1, "specSummary": "红色", "skuId": "sku-001" }
+
+【成功响应建议形态】（与项目其它接口兼容）
+
+方案 A（推荐，最简）：
+  HTTP 200
+  Body：
+  {
+    "data": {
+      "cartItemId": "新生成的购物车行 ID，可选",
+      "message": "已加入购物车"
+    }
+  }
+
+方案 B：
+  {
+    "data": true
+  }
+
+【失败响应】
+  HTTP 非 200 或业务错误：与现有后端约定一致；前端会走 request 内 reject + toast。
+
+【后端实现要点】
+  - 需根据当前登录用户（若 token 可解析出 userId）写入购物车表；未登录策略可与现有 444/445 一致。
+  - 同一 user + goodsId + skuId 可合并数量，或始终新增一行，由产品决定；前端只发 quantity。
+  - 若仅 goodsId 无 skuId，需约定默认 SKU 规则或返回 4xx 提示选规格。
+
+================================================================================
+三、接口 2：购物车列表
+================================================================================
+路径：           /cart/list
+HTTP 方法：      GET
+Query 参数：     可选预留 page、pageSize（当前前端 getCartList({}) 传空对象，即无查询参数亦可）
+
+【成功响应建议形态】
+
+HTTP 200
+Body（推荐，与 goods/detail 一样用嵌套 data）：
+
+{
+  "data": {
+    "items": [
+      {
+        "cartItemId": "唯一行 ID，字符串，前端作列表 key",
+        "goodsId": "商品 ID",
+        "skuId": "SKU ID，可选",
+        "name": "商品名称",
+        "specSummary": "规格摘要，与加购时 specSummary 或后端拼接一致",
+        "price": 99.00,
+        "quantity": 2,
+        "picture": "/相对路径，需与商品图一致；前端会用 ApiBaseUrlStore.baseurl 拼接"
+      }
+    ]
+  }
+}
+
+兼容说明（前端 normalize 已支持）：
+  - 若 data 直接为数组： "data": [ {...}, ... ]
+  - 若列表在 data.list / data.records 也可被解析（与部分分页接口习惯一致）
+
+【图片地址】
+  - 若 picture 为以 http 开头的绝对 URL，前端直接使用。
+  - 否则视为相对路径：展示 URL = baseurl + picture（baseurl 同 ApiBaseUrlStore，如 http://localhost:18080）。
+
+【失败响应】
+  网络错误或 HTTP 非 200：购物车页会捕获并展示「演示数据」行 + 顶部提示条。
+
+================================================================================
+四、前端文件与行为说明
+================================================================================
+utils/cartApi.js
+  - addToCart(data) -> POST /cart/add
+  - getCartList(params) -> GET /cart/list
+
+pages/detail/components/DetailActionBar/DetailActionBar.vue
+  - props：goodsId、detailData（商品详情对象，需含 skus 数组）
+  - 加入购物车：调用 addToCart，成功 toast「已加入购物车」
+
+pages/shopping/shopping.vue
+  - onShow 调用 getCartList
+  - 若解析后列表非空：展示接口数据，isDemoData=false
+  - 若列表为空或请求抛错：展示本地 FAKE_CART_ITEMS 一条演示数据，isDemoData=true，顶部黄色提示条说明
+
+pages/detail/detail.vue
+  - <DetailActionBar :goods-id="id" :detail-data="detailData" />
+
+================================================================================
+五、后续可迭代（未实现）
+================================================================================
+  - 详情页与 SelectSpces 弹窗联动：用户选中 SKU/数量后再加购，并把 quantity、skuId 传入。
+  - 购物车编辑数量、删除、勾选结算。
+  - 加购成功后同步刷新购物车 tab（依赖后端列表；也可事件总线 onShow 已会刷新）。
+
+================================================================================
+日志结束
+================================================================================

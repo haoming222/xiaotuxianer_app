@@ -1,0 +1,51 @@
+================================================================================
+商品详情「先选规格再加购」流程 — 前端变更日志
+项目：D:\uniappproject\app
+日期：2026-04-12
+================================================================================
+
+[需求]
+--------------------------------------------------------------------------------
+对齐淘宝：用户点击底部「加入购物车」时，不直接请求接口，先弹出规格/数量面板；
+用户在面板内选定 SKU、数量后，再调用 POST /cart/add。
+
+[涉及文件]
+--------------------------------------------------------------------------------
+1) pages/detail/detail.vue
+   - 增加 selectBoxRef，方法 openSpecSheet：校验 detailData.skus 后调用 SelectBox.openSpecsPopup()。
+   - DetailActionBar 改为仅监听 @open-specs，不再向底栏传 goodsId/detailData。
+
+2) pages/detail/components/DetailActionBar/DetailActionBar.vue
+   - 移除直接 addToCart 与 loading 状态。
+   - 「加入购物车」点击时 emit('open-specs')，由详情页打开规格弹层。
+
+3) pages/detail/components/SelectBox/SelectBox.vue
+   - 新增 props：goodsId（与详情路由 id 一致）。
+   - SelectSpces 增加 v-if，避免无 skus 时渲染报错。
+   - defineExpose({ openSpecsPopup })：供详情页底部栏调用打开 uni-popup。
+   - 子组件事件 @added-to-cart：加购成功后关闭弹层。
+
+4) pages/detail/components/SelectBox/SelectSpces.vue
+   - 新增 props：goodsId；用 watch 同步 detailData 变化并重置为第一个 SKU。
+   - 「加入购物车」按钮：使用当前 selectSpecsIndex、counterNum 组装 payload（goodsId、quantity、specSummary、skuId），调用 utils/cartApi.addToCart。
+   - 请求成功后 toast、emit('added-to-cart')。
+   - 防重复提交：addCartSubmitting。
+
+5) utils/cartApi.js
+   - 补充注释：addToCart 仅在规格弹层确认后调用。
+
+[交互说明]
+--------------------------------------------------------------------------------
+- 点击「选择 / 请选择商品规格」行：仍打开同一规格弹层（与底栏加购共用 specsPopup）。
+- 底部「加入购物车」与面板内「加入购物车」均先保证规格可见，再提交加购。
+
+[补充 2026-04-12] 确保「选规格后点加入购物车」必发请求
+--------------------------------------------------------------------------------
+- utils/cartApi.js 中 addToCart：POST body 使用 JSON.stringify，并设置 Content-Type:
+  application/json;charset=UTF-8，避免部分端上默认表单编码导致 Spring @RequestBody 取不到字段。
+- SelectSpces 底部按钮 @click 改为 @tap.stop，减少弹层内点击不触发。
+- handleAddToCart 中 goodsId 转 Number；skuId 统一 String 与后端 CartAddParam 对齐。
+
+================================================================================
+日志结束
+================================================================================
