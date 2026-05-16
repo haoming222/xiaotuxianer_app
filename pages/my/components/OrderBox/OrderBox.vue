@@ -3,19 +3,19 @@
 		<view class="order-content">
 			<view class="order-title">
 				<text class="title">我的订单</text>
-				<text class="show-all">查看全部订单 ></text>
+				<text class="show-all" @click="goToOrderList(-1)">查看全部订单 ></text>
 			</view>
 			<view class="order-section">
-				<view class="order-card">
+				<view class="order-card" @click="goToOrderList(0)">
 					<view class="pointer">1</view>
 					<img src="@/static/logoimg/3.1待付款.png" alt="" />
 					<text>待付款</text>
 				</view>
-				<view class="order-card">
+				<view class="order-card" @click="goToOrderList(1)">
 					<img src="@/static/logoimg/3.1待发货.png" alt="" />
 					<text>待发货</text>
 				</view>
-				<view class="order-card">
+				<view class="order-card" @click="goToOrderList(1)">
 					<img src="@/static/logoimg/3.1待收货.png" alt="" />
 					<text>待收货</text>
 				</view>
@@ -29,6 +29,11 @@
 </template>
 
 <script setup>
+const goToOrderList = (status) => {
+	uni.navigateTo({
+		url: `/pages/order/orderList?status=${status}`
+	});
+};
 </script>
 
 <style scoped lang="scss">

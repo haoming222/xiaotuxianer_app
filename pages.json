@@ -14,16 +14,23 @@
 			}
 		},
 		{
+			"path" : "pages/shopping/shopping",
+			"style" : 
+			{
+				"navigationBarTitleText" : "购物车"
+			}
+		},
+		{
 			"path" : "pages/my/my",
 			"style": {
 				"navigationStyle": "custom"
 			}
 		},
 		{
-			"path" : "pages/shopping/shopping",
+			"path" : "pages/order/orderList",
 			"style" : 
 			{
-				"navigationBarTitleText" : "购物车"
+				"navigationBarTitleText" : "我的订单"
 			}
 		},
 		{
