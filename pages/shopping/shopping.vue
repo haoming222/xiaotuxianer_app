@@ -52,7 +52,7 @@
 				<image v-if="fullImageUrl(submitItemInfo.picture)" class="submit_item_image"
 					:src="fullImageUrl(submitItemInfo.picture)" mode="aspectFill" />
 			</view>
-			<view class="submit_button" @click="confirmDeleteItem">
+			<view class="submit_button" @click="confirmSubmitItem">
 				确认提交该订单
 			</view>
 		</view>
@@ -148,6 +148,42 @@
 	}
 	const confirmDeleteItem = () => {
 		deleteCartItemRequest(deleteItemInfo.value.cartItemId)
+	}
+	
+	const confirmSubmitItem = async () => {
+		const item = submitItemInfo.value
+		if (!item) return
+		try {
+			const result = await request({
+				url: "/order/create",
+				method: "POST",
+				data: {
+					goodsId: item.goodsId,
+					skuId: item.skuId,
+					quantity: item.quantity,
+					specSummary: item.specSummary
+				}
+			})
+			if (result.code === 200) {
+				uni.showToast({
+					title: "下单成功，请在30分钟内支付",
+					icon: "success",
+					duration: 2500
+				})
+				submitCartItemPopup.value.close()
+				loadCart()
+			} else {
+				uni.showToast({
+					title: result.msg || "下单失败",
+					icon: "none"
+				})
+			}
+		} catch (e) {
+			uni.showToast({
+				title: "网络错误",
+				icon: "none"
+			})
+		}
 	}
 	onShow(() => {
 		loadCart()
