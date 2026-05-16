@@ -29,6 +29,19 @@
 							</view>
 						</view>
 					</view>
+					<!-- 待支付订单：剩余支付时间倒计时 -->
+					<view class="order-countdown" v-if="order.status === 0 && getRemainingSeconds(order) > 0">
+						<text class="countdown-icon">⏳</text>
+						<text class="countdown-label">剩余支付时间：</text>
+						<text class="countdown-time" :class="{ 'countdown-urgent': isTimeUrgent(order) }">
+							{{ formatRemaining(order) }}
+						</text>
+					</view>
+					<view class="order-countdown expired" v-else-if="order.status === 0 && getRemainingSeconds(order) <= 0">
+						<text class="countdown-icon">⏰</text>
+						<text class="countdown-label">订单已超时，即将自动取消</text>
+					</view>
+
 					<view class="order-footer">
 						<text class="total-label">合计：</text>
 						<text class="total-price">¥{{ order.totalPrice }}</text>
@@ -48,7 +61,8 @@
 <script setup>
 	import {
 		ref,
-		computed
+		computed,
+		onUnmounted
 	} from 'vue';
 	import {
 		onShow
@@ -79,9 +93,14 @@
 
 	const activeStatus = ref(-1);
 	const allOrders = ref([]);
+	const now = ref(Date.now()); // 当前时间戳，每秒更新
+	const AUTO_CANCEL_MINUTES = 5; // 订单自动取消时间（分钟）
+	let timer = null; // 倒计时定时器
 
 	// 根据传入参数确定初始 tab
 	onShow(() => {
+		// 启动倒计时定时器
+		startCountdown();
 		// 从路由参数获取初始筛选状态
 		const pages = getCurrentPages();
 		const currentPage = pages[pages.length - 1];
@@ -91,6 +110,10 @@
 		}
 		fetchOrders();
 	});
+
+		onUnmounted(() => {
+			stopCountdown();
+		});
 
 	const fetchOrders = async () => {
 		try {
@@ -122,6 +145,50 @@
 		}
 		return allOrders.value.filter(order => order.status === activeStatus.value);
 	});
+
+	const startCountdown = () => {
+		stopCountdown(); // 防止重复启动
+		now.value = Date.now();
+		timer = setInterval(() => {
+			now.value = Date.now();
+		}, 1000);
+	};
+
+	const stopCountdown = () => {
+		if (timer) {
+			clearInterval(timer);
+			timer = null;
+		}
+	};
+
+	// 计算订单剩余自动取消时间（秒），仅待支付订单有效
+	const getRemainingSeconds = (order) => {
+		if (order.status !== 0) return 0;
+		if (!order.createTime) return 0;
+		const createTimestamp = new Date(order.createTime).getTime();
+		const expireTimestamp = createTimestamp + AUTO_CANCEL_MINUTES * 60 * 1000;
+		const remaining = Math.floor((expireTimestamp - now.value) / 1000);
+		return Math.max(0, remaining);
+	};
+
+	// 格式化剩余时间为 HH:MM:SS 或 MM:SS
+	const formatRemaining = (order) => {
+		const seconds = getRemainingSeconds(order);
+		if (seconds <= 0) return '即将过期';
+		const h = Math.floor(seconds / 3600);
+		const m = Math.floor((seconds % 3600) / 60);
+		const s = seconds % 60;
+		const pad = (n) => String(n).padStart(2, '0');
+		if (h > 0) {
+			return `${pad(h)}:${pad(m)}:${pad(s)}`;
+		}
+		return `${pad(m)}:${pad(s)}`;
+	};
+
+	// 剩余时间是否紧张（少于60秒）
+	const isTimeUrgent = (order) => {
+		return getRemainingSeconds(order) > 0 && getRemainingSeconds(order) <= 60;
+	};
 
 	const switchTab = (value) => {
 		activeStatus.value = value;
@@ -300,6 +367,55 @@
 						}
 					}
 				}
+			}
+
+			.order-countdown {
+				display: flex;
+				align-items: center;
+				padding: 0.5rem 0;
+				margin: 0 -0.8rem;
+				padding-left: 0.8rem;
+				padding-right: 0.8rem;
+				background-color: #fff7f0;
+				border-top: 1px dashed #ffd9b3;
+
+				&.expired {
+					background-color: #fff0f0;
+					border-top-color: #ffb3b3;
+				}
+
+				.countdown-icon {
+					font-size: 0.9rem;
+					margin-right: 0.3rem;
+				}
+
+				.countdown-label {
+					font-size: 0.75rem;
+					color: #666;
+				}
+
+				.countdown-time {
+					font-size: 0.85rem;
+					font-weight: bold;
+					color: #ff6b35;
+					font-variant-numeric: tabular-nums;
+					letter-spacing: 0.05rem;
+
+					&.countdown-urgent {
+						color: #e74c3c;
+						animation: countdown-pulse 1s infinite;
+					}
+				}
+
+				&.expired .countdown-label {
+					color: #e74c3c;
+					font-weight: bold;
+				}
+			}
+
+			@keyframes countdown-pulse {
+				0%, 100% { opacity: 1; }
+				50% { opacity: 0.5; }
 			}
 
 			.order-footer {
