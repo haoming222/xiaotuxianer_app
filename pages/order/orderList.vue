@@ -149,8 +149,22 @@
 	const startCountdown = () => {
 		stopCountdown(); // 防止重复启动
 		now.value = Date.now();
+		// 记录上一秒还有效但当前已过期的订单ID（避免重复刷新）
+		let expiredChecked = new Set();
 		timer = setInterval(() => {
 			now.value = Date.now();
+			// 检测是否有待支付订单刚好过期，自动刷新数据
+			const pendingOrders = allOrders.value.filter(o => o.status === 0);
+			for (const order of pendingOrders) {
+				const remaining = getRemainingSeconds(order);
+				if (remaining <= 0 && !expiredChecked.has(order.id)) {
+					expiredChecked.add(order.id);
+					// 延迟一小段时间让后端 Redis 过期回调先执行
+					setTimeout(() => {
+						fetchOrders();
+					}, 1500);
+				}
+			}
 		}, 1000);
 	};
 

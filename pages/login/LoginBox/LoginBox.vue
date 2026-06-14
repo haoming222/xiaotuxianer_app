@@ -130,6 +130,7 @@
 					title:"登录成功",
 					duration:2000
 				})
+				uni.setStorageSync('token', data.data.token);
 				AccountInfoStore.setAccountInfo(data.data)
 				uni.switchTab({
 					url:'/pages/my/my'

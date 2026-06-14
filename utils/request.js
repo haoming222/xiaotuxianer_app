@@ -8,25 +8,30 @@ const HELPER_CHAT_BASE_URL = 'http://localhost:18013';
 
 export default function request(options) {
     return new Promise((resolve, reject) => {
-			// console.log(useTokenStore().token);
+			// 优先从 Pinia Store 读 token，失败则用 storage（确保跨页面 token 不丢失）
+			let token = "";
+			try { token = useTokenStore().token; } catch(e) {}
+			if (!token) { token = uni.getStorageSync('token') || ''; }
+			console.log("[request] 请求:", options.url, " token存在:", !!token);
 			uni.request({
 					url: BASE_URL + options.url, // 拼接完整URL
 					method: options.method || 'GET', // 默认GET请求
 					data: options.data || {}, // 请求数据
 					header: {
 						...options.header, // 合并用户自定义header
-						Authorization:uni.getStorageSync('token') || '',
-						// Authorization: useTokenStore().token || "",
+						Authorization: token,
 					},
 					success: (res) => {
 							// console.log(res)
 							if (res.statusCode === 200) {
 									resolve(res.data); // 请求成功返回数据
-							} else if(res.statusCode === 444 || res.statusCode === 445){
+							} else if(res.statusCode === 444 || res.statusCode === 445 || res.statusCode === 401){
+								// 401: 未登录  444: token无效  445: token缺失
 								console.log(res.data);
+								const errMsg = res.data.error || res.data.message || '登录已过期';
 								uni.showToast({
 									icon:"error",
-									title:res.data.error,
+									title: errMsg,
 									duration:2000
 								})
 								resolve(res.data)
@@ -34,7 +39,8 @@ export default function request(options) {
 									url:"/pages/login/login"
 								})
 							}else {
-									uni.showToast({ title: res.data.message || '请求失败', icon: 'none' });
+									const msg = res.data.error || res.data.message || '请求失败';
+									uni.showToast({ title: msg, icon: 'none' });
 									reject(res.data); 
 							}
 					},
@@ -82,7 +88,7 @@ export function helper_chat_request(options) {
 							}
 					},
 					fail: (err) => {
-						console.log(err.statusCode);
+						console.log(err);
 						uni.showToast({ title: '网络错误', icon: 'none' });
 						reject(err); // 网络错误
 					},
