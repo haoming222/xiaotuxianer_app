@@ -102,6 +102,13 @@
 			{
 				"navigationBarTitleText" : ""
 			}
+		},
+		{
+			"path" : "pages/aiAssistant/aiAssistant",
+			"style" : 
+			{
+				"navigationBarTitleText" : "AI 购物助手"
+			}
 		}
 		
 	],

@@ -6,13 +6,17 @@
 			<GoodBox :goodData="guessLikeData"></GoodBox>
 			<view v-if="showLoadMore" class="load-more">加载更多...</view>
 		</scroll-view>
-		<view class="helper-box" @click="clickHelper" v-if="isShowHelper">
+		<!-- AI 购物助手入口 ─ 点击跳转独立页面 -->
+		<view class="ai-helper-box" @click="clickAiAssistant">
+			<view style="font-size: 24px;">🤖</view>
+		</view>
+		<!-- <view class="helper-box" @click="clickHelper" v-if="isShowHelper">
 			<img class="helper-avatar-bbox" :src="helperAvatar" alt="">
-		</view>
+		</view> -->
 		<!-- 页面底部收缩条 -->
-		<view class="helper-content-bbox" :class="{ active: showHelperContentBox }">
+		<!-- <view class="helper-content-bbox" :class="{ active: showHelperContentBox }">
 			<HelperChat></HelperChat>
-		</view>
+		</view> -->
 	</view>
 </template>
 
@@ -71,6 +75,9 @@
 	const clickHelper = () => {
 		showHelperContentBox.value = !showHelperContentBox.value
 	}
+	const clickAiAssistant = () => {
+		uni.navigateTo({ url: '/pages/aiAssistant/aiAssistant' })
+	}
 	onShow(() => {
 		fetchGuessGoodData();
 	});
@@ -95,6 +102,24 @@
 			text-align: center;
 		}
 
+		.ai-helper-box {
+			position: fixed;
+			right: 20px;
+			bottom: 50px;
+			height: 60px;
+			width: 60px;
+			z-index: 99;
+			background: #1296db;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			box-shadow: 0 2px 8px rgba(18,150,219,0.4);
+			.ai-helper-avatar {
+				width: 32px;
+				height: 32px;
+			}
+		}
 		.helper-box {
 			position: fixed;
 			right: 20px;
